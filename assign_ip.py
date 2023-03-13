@@ -2,13 +2,8 @@
 
 import yaml
 import re
+import argparse
 from pprint import pprint
-
-with open("topology.yaml", "r") as stream:
-    try:
-        topo_data = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
 
 #print ("topo = ")
 #pprint (topo_data)
@@ -35,8 +30,37 @@ def get_edge_list(topo_data):
     return edge_list
 
 
+def remove_dup_edges(edge_list):
+    uniq_edge_list = []
+    for edge in edge_list:
+        reverse_edge = [edge[2],edge[3],edge[0],edge[1]]
+        if edge not in uniq_edge_list and reverse_edge not in uniq_edge_list:
+            uniq_edge_list.append(edge)
+    return (uniq_edge_list)
+
+
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='Assign P2P addresses')
+    parser.add_argument('--ipv4_subnet', default="192.168.0.0/24", help='IPv4 address range')
+    parser.add_argument('--ipv6_subnet', default="2001:192:168:0::/56", help='IPv6 address range')
+    parser.add_argument('topo_file', default="topology.yaml", help='JCL topology file')
+    args = parser.parse_args()
+
+    ipv6_p2p_prefix_length = 64
+    ipv4_p2p_prefix_length = 30
+
+
+    #with open("topology.yaml", "r") as stream:
+    with open(args.topo_file, "r") as stream:
+        try:
+            topo_data = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
     edge_list = get_edge_list(topo_data)
     pprint (edge_list)
+    uniq_edge_list = remove_dup_edges(edge_list)
+    pprint (uniq_edge_list)
 
