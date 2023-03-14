@@ -38,9 +38,10 @@ def remove_non_jnpr(edge_list):
     return jnpr_edge_list
 
 def assign_ip(edge_list):
+    device_configs = {}
 
-    ipv4_address = iter( ipaddress.ip_network(args.ipv4_subnet).subnets(new_prefix=ipv4_p2p_prefix_length))
-    ipv6_address = iter( ipaddress.ip_network(args.ipv6_subnet).subnets(new_prefix=ipv6_p2p_prefix_length))
+    ipv4_address = iter(ipaddress.ip_network(args.ipv4_subnet).subnets(new_prefix=ipv4_p2p_prefix_length))
+    ipv6_address = iter(ipaddress.ip_network(args.ipv6_subnet).subnets(new_prefix=ipv6_p2p_prefix_length))
 
     for edge in edge_list:
         print ("\n")
@@ -51,38 +52,29 @@ def assign_ip(edge_list):
         print ("ipv6_ptp_subnet = ",ipv6_ptp_subnet)
         ipv4_host = iter(ipv4_ptp_subnet.hosts())
         ipv6_host = iter(ipv6_ptp_subnet.hosts())
-        #ipv4_addr_1 = next(ipv4_ptp_subnet.hosts())
-        #ipv6_addr_1 = next(ipv6_ptp_subnet.hosts())
-        #ipv4_addr_2 = next(ipv4_ptp_subnet.hosts())
-        #ipv6_addr_2 = next(ipv6_ptp_subnet.hosts())
-        print (edge[0],edge[1],next(ipv4_host),next(ipv6_host))
-        print (edge[2],edge[3],next(ipv4_host),next(ipv6_host))
+        #print (edge[0],edge[1],next(ipv4_host),next(ipv6_host))
+        #print (edge[2],edge[3],next(ipv4_host),next(ipv6_host))
+        #device_configs[edge[0]].append( [ {"interface":edge[1], "ipv4_address":next(ipv4_host), "ipv6_address":next(ipv6_host)} ])
+        #device_configs[edge[2]].append( [ {"interface":edge[3], "ipv4_address":next(ipv4_host), "ipv6_address":next(ipv6_host)} ])
+        ipv4_1 = str(next(ipv4_host)) + "/30"
+        ipv6_1 = str(next(ipv6_host)) + "/64"
+        ipv4_2 = str(next(ipv4_host)) + "/30"
+        ipv6_2 = str(next(ipv6_host)) + "/64"
+
+
+        if edge[0] in device_configs:
+            device_configs[edge[0]].append(  {"interface":edge[1], "ipv4_address":ipv4_1, "ipv6_address":ipv6_1} )
+        else:
+            device_configs[edge[0]] = [ {"interface":edge[1], "ipv4_address":ipv4_1, "ipv6_address":ipv6_1} ]
+
+        if edge[2] in device_configs:
+            device_configs[edge[2]].append(  {"interface":edge[3], "ipv4_address":ipv4_2, "ipv6_address":ipv6_2} )
+        else:
+            device_configs[edge[2]] = [ {"interface":edge[3], "ipv4_address":ipv4_2, "ipv6_address":ipv6_2} ]
+
+    return device_configs
 
         
-
-
-
-#    for ipv4_p2p_subnet,ipv6_p2p_subnet in zip(
-#            ipaddress.ip_network(ipv4_subnet).subnets(new_prefix=ipv4_p2p_prefix_length),
-#            ipaddress.ip_network(ipv6_subnet).subnets(new_prefix=ipv6_p2p_prefix_length)
-#            ):
-#
-#
-#       print ("")
-#       print (ipv4_p2p_subnet," ",ipv6_p2p_subnet)
-#
-#       for ipv4_host, ipv6_host in zip (ipv4_p2p_subnet.hosts(),ipv6_p2p_subnet.hosts()):
-#           print ("\t",ipv4_host," ",ipv6_host)
-#           print ("\t",ipv4_host,"\t set interface   unit 0 family inet address",ipv4_host)
-#           print ("\t",ipv6_host,"\t set interface   unit 0 family inet6 address",ipv6_host)
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
 
