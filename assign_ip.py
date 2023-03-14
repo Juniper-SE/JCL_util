@@ -5,9 +5,8 @@ import re
 import argparse
 import ipaddress
 from pprint import pprint
+from jinja2 import Template
 
-#print ("topo = ")
-#pprint (topo_data)
 
 def get_edge_list(topo_data):
     edge_list = []
@@ -44,24 +43,23 @@ def assign_ip(edge_list):
     ipv6_address = iter(ipaddress.ip_network(args.ipv6_subnet).subnets(new_prefix=ipv6_p2p_prefix_length))
 
     for edge in edge_list:
-        print ("\n")
-        print (edge)
+        #print ("\n")
+        #print (edge)
         ipv4_ptp_subnet = next(ipv4_address)
         ipv6_ptp_subnet = next(ipv6_address)
-        print ("ipv4_ptp_subnet = ",ipv4_ptp_subnet)
-        print ("ipv6_ptp_subnet = ",ipv6_ptp_subnet)
+        #print ("ipv4_ptp_subnet = ",ipv4_ptp_subnet)
+        #print ("ipv6_ptp_subnet = ",ipv6_ptp_subnet)
         ipv4_host = iter(ipv4_ptp_subnet.hosts())
         ipv6_host = iter(ipv6_ptp_subnet.hosts())
-        #print (edge[0],edge[1],next(ipv4_host),next(ipv6_host))
-        #print (edge[2],edge[3],next(ipv4_host),next(ipv6_host))
-        #device_configs[edge[0]].append( [ {"interface":edge[1], "ipv4_address":next(ipv4_host), "ipv6_address":next(ipv6_host)} ])
-        #device_configs[edge[2]].append( [ {"interface":edge[3], "ipv4_address":next(ipv4_host), "ipv6_address":next(ipv6_host)} ])
+
+        # Assign individual addresses
         ipv4_1 = str(next(ipv4_host)) + "/30"
         ipv6_1 = str(next(ipv6_host)) + "/64"
         ipv4_2 = str(next(ipv4_host)) + "/30"
         ipv6_2 = str(next(ipv6_host)) + "/64"
 
 
+        # There has to be a better way to do this...
         if edge[0] in device_configs:
             device_configs[edge[0]].append(  {"interface":edge[1], "ipv4_address":ipv4_1, "ipv6_address":ipv6_1} )
         else:
@@ -74,6 +72,47 @@ def assign_ip(edge_list):
 
     return device_configs
 
+def generate_interface_configs(rtr,router_interfaces):
+
+    template = """
+    interfaces {
+    {% for interface in interfaces %}
+    {{ interface.interface }} {
+        unit 0 {
+            replace: family inet {
+                address {{ interface.ipv4_address }} ;
+            }
+            family iso;
+            replace: family inet6 {
+                address {{ interface.ipv6_address }};
+            }
+        }
+      }
+    {% endfor %}
+    }
+
+
+    protocols {
+        isis {
+            {% for interface in interfaces %}
+            interface {{ interface.interface }}.0 {
+            level 2 metric 10;
+            }
+            {% endfor %}
+        }
+    }
+
+    """
+
+    #pprint (rtr)
+    #pprint (router_interfaces)
+    j2_template = Template(template)
+
+    data ={}
+    data["interfaces"] = router_interfaces
+    #pprint (data)
+
+    return j2_template.render(data)
         
 
 if __name__ == "__main__":
@@ -102,7 +141,14 @@ if __name__ == "__main__":
     jnpr_uniq_edge_list = remove_non_jnpr(uniq_edge_list)
     #pprint (jnpr_uniq_edge_list)
     router_interfaces = assign_ip(jnpr_uniq_edge_list)
-    pprint (router_interfaces)
+    #pprint (router_interfaces)
+
+    for rtr in router_interfaces:
+        print ("===",rtr,"===")
+        interface_config = generate_interface_configs(rtr,router_interfaces[rtr])
+        print (interface_config)
+
+
 
 
 
