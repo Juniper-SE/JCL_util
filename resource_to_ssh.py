@@ -1,13 +1,19 @@
 #!/usr/bin/python3
 
+import argparse
 import csv
 import re
+
+
+parser = argparse.ArgumentParser(description='create SSH config file from JCL resource file. (email from JCL)',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('resource_file', nargs='?', default="JCL-Sandbox-Resources.csv", help='JCL resource file')
+args = parser.parse_args()
 
 
 rematch_name = r'^(HelperVM)|(Ubuntu)|(vMX)'
 
 
-with open('JCL-Sandbox-Resources.csv') as csvfile:
+with open(args.resource_file) as csvfile:
     reader = csv.DictReader(csvfile)
     for row in reader:
         if not(row["Service"] == "SSH"):
@@ -25,4 +31,5 @@ with open('JCL-Sandbox-Resources.csv') as csvfile:
         print("\t", "ForwardX11 yes")
         print("\t", "TCPKeepAlive yes")
         print("\t", "#ServerAliveInterval 300")
+        print("")
 
