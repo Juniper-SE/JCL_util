@@ -50,8 +50,8 @@ def remove_non_jnpr(edge_list):
 def assign_ip(edge_list):
     device_configs = {}
 
-    ipv4_address = iter(ipaddress.ip_network(args.ipv4_subnet).subnets(new_prefix=ipv4_p2p_prefix_length))
-    ipv6_address = iter(ipaddress.ip_network(args.ipv6_subnet).subnets(new_prefix=ipv6_p2p_prefix_length))
+    ipv4_address = iter(ipaddress.ip_network(args.ipv4_p2p_subnet).subnets(new_prefix=ipv4_p2p_prefix_length))
+    ipv6_address = iter(ipaddress.ip_network(args.ipv6_p2p_subnet).subnets(new_prefix=ipv6_p2p_prefix_length))
 
     for edge in edge_list:
         #print ("\n")
@@ -179,8 +179,8 @@ def install_configs(rtr,configs):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Assign IP addresses to JCL devices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--ipv4_subnet', default="192.168.0.0/24", help='IPv4 address range')
-    parser.add_argument('--ipv6_subnet', default="2001:192:168:0::/56", help='IPv6 address range')
+    parser.add_argument('--ipv4_p2p_subnet', default="192.168.0.0/24", help='IPv4 address range')
+    parser.add_argument('--ipv6_p2p_subnet', default="2001:192:168:0::/56", help='IPv6 address range')
     parser.add_argument('--ipv4_lo_subnet', default="10.255.255.0/24", help='IPv4 lo address range')
     parser.add_argument('--ipv6_lo_subnet', default="2001:255:255:0::/64", help='IPv4 lo address range')
     parser.add_argument('--install', action='store_true', help='Install to devices')
