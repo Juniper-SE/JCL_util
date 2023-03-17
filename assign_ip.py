@@ -118,6 +118,7 @@ def generate_interface_configs(rtr,router_interfaces):
             }
             {% else -%}
             family iso;
+            family mpls;
             {% endif -%}
             replace: family inet6 {
                 address {{ interface.ipv6_address }};
