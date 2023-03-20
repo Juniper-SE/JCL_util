@@ -137,6 +137,12 @@ def generate_interface_configs(rtr,router_interfaces):
             }
             {% endfor %}
         }
+        mpls {
+            {% for interface in interfaces if not interface.interface=="lo0" %}
+            interface {{ interface.interface }}.0 ;
+            {% endfor %}
+        }
+
     }
 
     """
