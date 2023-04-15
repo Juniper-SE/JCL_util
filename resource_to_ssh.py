@@ -30,6 +30,8 @@ with open(args.resource_file) as csvfile:
         print("\t", "ForwardAgent yes")
         print("\t", "ForwardX11 yes")
         print("\t", "TCPKeepAlive yes")
-        print("\t", "#ServerAliveInterval 300")
+        print("\t", "ServerAliveInterval 60")
+        print("\t", "StrictHostKeyChecking no")
+        print("\t", "UserKnownHostsFile /dev/null")
         print("")
 
