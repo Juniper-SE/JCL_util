@@ -142,6 +142,9 @@ def generate_interface_configs(rtr,router_interfaces):
             interface {{ interface.interface }}.0 ;
             {% endfor %}
         }
+        lldp {
+            interface all;
+        }
 
     }
 
