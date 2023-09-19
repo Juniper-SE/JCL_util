@@ -10,7 +10,7 @@ parser.add_argument('resource_file', nargs='?', default="JCL-Sandbox-Resources.c
 args = parser.parse_args()
 
 
-rematch_name = r'^(HelperVM)|(Ubuntu)|(vMX)'
+rematch_name = r'^(HelperVM)|(Ubuntu)|(vMX)|(vLinuxSRV)'
 
 
 with open(args.resource_file) as csvfile:
