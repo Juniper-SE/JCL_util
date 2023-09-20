@@ -197,6 +197,8 @@ def install_configs(rtr, configs):
     dev.close()
 
 ##########
+
+
 def lag_interfaces(edge_list):
     """ Find lag interfaces """
 
@@ -224,7 +226,7 @@ def lag_interfaces(edge_list):
                         parallel_edge_list.append(edge)
                     parallel_edge = edge_list.pop(x)
                     parallel_edge_list.append(parallel_edge)
-            except IndexError:  #Should not modify the list we are iterating over.
+            except IndexError:  # Should not modify the list we are iterating over.
                 pass
         if parallel_count == 0:
             new_edge_list.append(edge)
@@ -240,8 +242,7 @@ def lag_interfaces(edge_list):
 
 
 ##########
-def assign_ip_lag (lag_list):
-
+def assign_ip_lag(lag_list):
 
     lag_group_data = {}
     print("=== lag_list ===")
@@ -262,22 +263,37 @@ def assign_ip_lag (lag_list):
 
         print("=== lag_group ===")
         pprint(lag_group)
-        device1 = lag_group[0][0]
-        
-        ae1 = ae_iterator(device1)
-        aliases1 = aliases[device1]
-        lag_group_data[device1]={}
-        lag_group_data[device1][ae1] = dict(description=aliases1,ipv4=ipv4_1,ipv6=ipv6_1)
-        #lag_group_data[lag_group[0][0]]["ae1"] = dict(description=lag_group[0][2],ipv4=ipv4_1,ipv6=ipv6_1)
-        #lag_group_data[lag_group[0][0]].setdefault("ae1", dict(description=lag_group[0][2],ipv4=ipv4_1,ipv6=ipv6_1))
-        
-        #ae = lag_group_data[lag_group[0][0]].setdefault("ae1",{})
-        #lag_group_data[lag_group[0][0]].setdefault("ae1",{})
-        for lag in lag_group:
-            lag_group_data[lag[0]][ae1].setdefault("interfaces",[]).append(lag[1])
-            #ae.setdefault("interfaces",[]).append(lag[1])
 
-       
+        #Get device names 
+        device1 = lag_group[0][0]
+        device2 = lag_group[0][2]
+
+        print ("device1 = ",device1)
+        print ("device2 = ",device2)
+
+        #Get ae iterator - keeps track of the next available ae interface.
+        ae1 = ae_iterator(device1)
+        ae2 = ae_iterator(device2)
+
+        #Get the alias of the device so we can add a meaningful name to the description
+        aliases1 = aliases[device1]
+        aliases2 = aliases[device2]
+
+        #lag_group_data[device1] = {}
+        #lag_group_data[device2] = {}
+
+        lag_group_data.setdefault(device1, {})[ae1] = dict( description=aliases2, ipv4=ipv4_1, ipv6=ipv6_1)
+        lag_group_data.setdefault(device2, {})[ae2] = dict( description=aliases1, ipv4=ipv4_2, ipv6=ipv6_2)
+
+        #lag_group_data[device1][ae1] = dict( description=aliases1, ipv4=ipv4_1, ipv6=ipv6_1)
+        #lag_group_data[device2][ae2] = dict( description=aliases2, ipv4=ipv4_2, ipv6=ipv6_2)
+        for lag in lag_group:
+            print ("lag = ",lag)
+            #lag =  ['vMX-01083', 'ge-0/0/4', 'vMX-01666', 'ge-0/0/1']
+            #lag =  ['vMX-01083', 'ge-0/0/3', 'vMX-01666', 'ge-0/0/0']
+            lag_group_data[lag[0]][ae1].setdefault( "interfaces", []).append(lag[1])
+            lag_group_data[lag[2]][ae2].setdefault( "interfaces", []).append(lag[3])
+
     print("=== lag_group_data ===")
     pprint(lag_group_data)
 
@@ -288,6 +304,7 @@ def make_aliases():
         reader = csv.DictReader(csvfile)
         for row in reader:
             aliases[row["Name"]] = row["Alias"]
+
 
 ##########
 if __name__ == "__main__":
@@ -306,7 +323,8 @@ if __name__ == "__main__":
                         help='Bundle multiple edges into a LAG')
     parser.add_argument('--install', action='store_true',
                         help='Install to devices')
-    parser.add_argument('--resource_file', default="JCL-Sandbox-Resources.csv", help='JCL resource file')
+    parser.add_argument(
+        '--resource_file', default="JCL-Sandbox-Resources.csv", help='JCL resource file')
     parser.add_argument('topo_file', nargs='?',
                         default="/etc/ansible/group_vars/all/topology.yaml", help='JCL topology file')
     args = parser.parse_args()
@@ -331,11 +349,9 @@ if __name__ == "__main__":
 
     ae_iterator = ae_Iterator()
 
-    aliases={}
+    aliases = {}
 
-    
     make_aliases()
-
 
     # with open("topology.yaml", "r") as stream:
     with open(args.topo_file, "r") as stream:
@@ -375,7 +391,7 @@ if __name__ == "__main__":
         print("===", rtr, "===")
         interface_config = generate_interface_configs(
             rtr, router_interfaces[rtr])
-        #print(interface_config)
+        # print(interface_config)
         if (args.install):
             install_configs(rtr, interface_config)
 
