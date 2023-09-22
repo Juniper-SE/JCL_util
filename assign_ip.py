@@ -108,8 +108,6 @@ def assign_ip(edge_list):
     return device_configs
 
 ##########
-
-
 def generate_interface_configs(rtr, router_interfaces):
 
     template = """
@@ -161,14 +159,55 @@ def generate_interface_configs(rtr, router_interfaces):
 
     """
 
-    # pprint (rtr)
-    # pprint (router_interfaces)
+    print ("rtr = ",rtr)
+    pprint (router_interfaces)
     j2_template = Template(template)
 
     # must be a better way to do this
     data = {}
     data["interfaces"] = router_interfaces
     return j2_template.render(data)
+
+##########
+def generate_lag_configs(rtr, lag_interfaces):
+
+    template = """
+
+interfaces {
+    {% for key,value in lag.items() %}
+      {% for int in lag[key].interfaces %}
+        replace: {{int}} {
+            description "{{lag[key].description}}";
+            gigether-options {
+               802.3ad {{key}};
+            }
+       }
+      {% endfor %}
+      replace: {{key}} {
+          description "{{lag[key].description}}";
+          unit 0 {
+              family inet {
+                  address {{lag[key].ipv4}}
+              }
+              family inet6 {
+                  address {{lag[key].ipv6}}
+              }
+          }
+      }
+    {% endfor %}
+}
+
+    """
+
+    #print ("lag rtr = ",rtr)
+    #pprint (lag_interfaces)
+    j2_template = Template(template)
+
+    # must be a better way to do this
+    data = {}
+    #data["interfaces"] = router_interfaces
+    config = j2_template.render({"lag":lag_interfaces})
+    return config
 
 
 ##########
@@ -243,13 +282,15 @@ def lag_interfaces(edge_list):
 
 ##########
 def assign_ip_lag(lag_list):
+    """ Go through the lag list and convert it into a dict.  Assign interfaces and IP addresses"""
 
     lag_group_data = {}
-    print("=== lag_list ===")
-    pprint(lag_list)
+    # print("=== lag_list ===")
+    # pprint(lag_list)
 
     for lag_group in lag_list:
 
+        # Get the next available PTP address
         ipv4_ptp_subnet = next(ipv4_address)
         ipv6_ptp_subnet = next(ipv6_address)
         ipv4_host = iter(ipv4_ptp_subnet.hosts())
@@ -261,49 +302,51 @@ def assign_ip_lag(lag_list):
         ipv4_2 = str(next(ipv4_host)) + "/30"
         ipv6_2 = str(next(ipv6_host)) + "/64"
 
-        print("=== lag_group ===")
-        pprint(lag_group)
+        # print("=== lag_group ===")
+        # pprint(lag_group)
 
-        #Get device names 
+        # Get device names
         device1 = lag_group[0][0]
         device2 = lag_group[0][2]
 
-        print ("device1 = ",device1)
-        print ("device2 = ",device2)
-
-        #Get ae iterator - keeps track of the next available ae interface.
+        # Get ae interface name from the iterator - keeps track of the next available ae interface.
         ae1 = ae_iterator(device1)
         ae2 = ae_iterator(device2)
 
-        #Get the alias of the device so we can add a meaningful name to the description
+        # Get the alias of the device so we can add a meaningful name to the description
         aliases1 = aliases[device1]
         aliases2 = aliases[device2]
 
-        #lag_group_data[device1] = {}
-        #lag_group_data[device2] = {}
+        # Assign the description and addresses to the lag group
+        lag_group_data.setdefault(device1, {})[ae1] = dict(
+            description=aliases2, ipv4=ipv4_1, ipv6=ipv6_1)
+        lag_group_data.setdefault(device2, {})[ae2] = dict(
+            description=aliases1, ipv4=ipv4_2, ipv6=ipv6_2)
 
-        lag_group_data.setdefault(device1, {})[ae1] = dict( description=aliases2, ipv4=ipv4_1, ipv6=ipv6_1)
-        lag_group_data.setdefault(device2, {})[ae2] = dict( description=aliases1, ipv4=ipv4_2, ipv6=ipv6_2)
-
-        #lag_group_data[device1][ae1] = dict( description=aliases1, ipv4=ipv4_1, ipv6=ipv6_1)
-        #lag_group_data[device2][ae2] = dict( description=aliases2, ipv4=ipv4_2, ipv6=ipv6_2)
+        # Assign the interfaces to the lag group
         for lag in lag_group:
-            print ("lag = ",lag)
-            #lag =  ['vMX-01083', 'ge-0/0/4', 'vMX-01666', 'ge-0/0/1']
-            #lag =  ['vMX-01083', 'ge-0/0/3', 'vMX-01666', 'ge-0/0/0']
-            lag_group_data[lag[0]][ae1].setdefault( "interfaces", []).append(lag[1])
-            lag_group_data[lag[2]][ae2].setdefault( "interfaces", []).append(lag[3])
+            lag_group_data[lag[0]][ae1].setdefault(
+                "interfaces", []).append(lag[1])
+            lag_group_data[lag[2]][ae2].setdefault(
+                "interfaces", []).append(lag[3])
 
-    print("=== lag_group_data ===")
-    pprint(lag_group_data)
+    #pprint("=== lag_group_data ===")
+    #pprint(lag_group_data)
 
+    return (lag_group_data)
 
 ##########
 def make_aliases():
-    with open(args.resource_file) as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            aliases[row["Name"]] = row["Alias"]
+    try:
+        with open(args.resource_file) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                aliases[row["Name"]] = row["Alias"]
+    except FileNotFoundError as e:
+        print ("cannot find resource file",args.resource_file)
+        print ("Please specify resource file location\n")
+        parser.print_help()
+        exit()
 
 
 ##########
@@ -354,11 +397,17 @@ if __name__ == "__main__":
     make_aliases()
 
     # with open("topology.yaml", "r") as stream:
-    with open(args.topo_file, "r") as stream:
-        try:
-            topo_data = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
+    try:
+        with open(args.topo_file, "r") as stream:
+            try:
+                topo_data = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+    except FileNotFoundError as e:
+        print ("cannot find topo_file",args.topo_file)
+        print ("Please specify topo_file location\n")
+        parser.print_help()
+        exit()
 
     edge_list = get_edge_list(topo_data)
     print("=== edge_list ===")
@@ -389,12 +438,23 @@ if __name__ == "__main__":
 
     for rtr in router_interfaces:
         print("===", rtr, "===")
-        interface_config = generate_interface_configs(
-            rtr, router_interfaces[rtr])
-        # print(interface_config)
+        interface_config = generate_interface_configs( rtr, router_interfaces[rtr])
+        print(interface_config)
         if (args.install):
             install_configs(rtr, interface_config)
 
-    lag_interfaces = assign_ip_lag(lag_list)
-    print("=== LAG interfaces ===")
-    pprint(lag_interfaces)
+    if args.lag:
+        lag_interfaces = assign_ip_lag(lag_list)
+        print("=== LAG interfaces ===")
+        #pprint(lag_interfaces)
+        for rtr in lag_interfaces:
+            print("===", rtr, "===")
+            interface_config = generate_lag_configs( rtr, lag_interfaces[rtr])
+            print(interface_config)
+            if (args.install):
+                install_configs(rtr, interface_config)
+
+
+
+
+
