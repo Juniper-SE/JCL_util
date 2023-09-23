@@ -5,6 +5,9 @@ import re
 import argparse
 import ipaddress
 import csv
+#import configparser
+import subprocess
+import json
 from pprint import pprint
 from jinja2 import Template
 from jnpr.junos import Device
@@ -83,17 +86,17 @@ def assign_ip(edge_list):
         # There has to be a better way to do this...
         if edge[0] in device_configs:
             device_configs[edge[0]].append(
-                {"interface": edge[1], "ipv4_address": ipv4_1, "ipv6_address": ipv6_1, "description": edge[2] + ":" + edge[3]})
+                {"interface": edge[1], "ipv4_address": ipv4_1, "ipv6_address": ipv6_1, "description": get_alias(edge[2]) + ":" + edge[3]})
         else:
             device_configs[edge[0]] = [{"interface": edge[1], "ipv4_address": ipv4_1,
-                                        "ipv6_address": ipv6_1, "description": edge[2] + ":" + edge[3]}]
+                                        "ipv6_address": ipv6_1, "description": get_alias(edge[2]) + ":" + edge[3]}]
 
         if edge[2] in device_configs:
             device_configs[edge[2]].append(
-                {"interface": edge[3], "ipv4_address": ipv4_2, "ipv6_address": ipv6_2, "description": edge[0]+":"+edge[1]})
+                {"interface": edge[3], "ipv4_address": ipv4_2, "ipv6_address": ipv6_2, "description": get_alias(edge[0]) + ":" + edge[1]})
         else:
             device_configs[edge[2]] = [{"interface": edge[3], "ipv4_address": ipv4_2,
-                                        "ipv6_address": ipv6_2, "description": edge[0]+":"+edge[1]}]
+                                        "ipv6_address": ipv6_2, "description": get_alias(edge[0]) + ":" + edge[1]}]
 
     for rtr in device_configs:
         ipv4_lo = next(ipv4_lo_address)
@@ -115,7 +118,7 @@ def generate_interface_configs(rtr, router_interfaces):
     {% for interface in interfaces %}
     {{ interface.interface }} {
         {% if interface.description is defined and interface.description|length -%}
-        description {{interface.description}}
+        description "{{interface.description}}"
         {% endif -%}
         unit 0 {
             replace: family inet {
@@ -166,12 +169,22 @@ def generate_interface_configs(rtr, router_interfaces):
     # must be a better way to do this
     data = {}
     data["interfaces"] = router_interfaces
-    return j2_template.render(data)
+    config = j2_template.render(data)
+    return config
 
 ##########
 def generate_lag_configs(rtr, lag_interfaces):
 
     template = """
+
+chassis {
+   aggregated-devices {
+       ethernet {
+           device-count 10;
+       }
+   }
+}
+
 
 interfaces {
     {% for key,value in lag.items() %}
@@ -199,8 +212,8 @@ interfaces {
 
     """
 
-    #print ("lag rtr = ",rtr)
-    #pprint (lag_interfaces)
+    print ("lag rtr = ",rtr)
+    pprint (lag_interfaces)
     j2_template = Template(template)
 
     # must be a better way to do this
@@ -314,8 +327,8 @@ def assign_ip_lag(lag_list):
         ae2 = ae_iterator(device2)
 
         # Get the alias of the device so we can add a meaningful name to the description
-        aliases1 = aliases[device1]
-        aliases2 = aliases[device2]
+        aliases1 = get_alias(device1)
+        aliases2 = get_alias(device2)
 
         # Assign the description and addresses to the lag group
         lag_group_data.setdefault(device1, {})[ae1] = dict(
@@ -336,17 +349,45 @@ def assign_ip_lag(lag_list):
     return (lag_group_data)
 
 ##########
-def make_aliases():
+def get_alias_from_ansible_hosts():
+
     try:
-        with open(args.resource_file) as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                aliases[row["Name"]] = row["Alias"]
-    except FileNotFoundError as e:
-        print ("cannot find resource file",args.resource_file)
-        print ("Please specify resource file location\n")
-        parser.print_help()
+        # Run the ansible-inventory command and get the JSON output
+        result = subprocess.check_output(['ansible-inventory', '--list'], text=True)
+
+        # Parse the JSON output into a Python dictionary
+        inventory = json.loads(result)
+        #print(json.dumps(inventory, indent=4))
+        #pprint(inventory["_meta"]["hostvars"])
+        for device in inventory["_meta"]["hostvars"]:
+            #print ("device = ",device)
+            if "aliase" in inventory["_meta"]["hostvars"][device]:
+                #print(inventory["_meta"]["hostvars"][device]["aliase"])
+                aliases[device] = inventory["_meta"]["hostvars"][device]["aliase"]
+    except Exception as e:
+        print(e)
         exit()
+
+
+##########
+def get_alias(device):
+    if device in aliases:
+        return aliases[device]
+    else:
+        return device
+
+##########
+#def make_aliases():
+#    try:
+#        with open(args.resource_file) as csvfile:
+#            reader = csv.DictReader(csvfile)
+#            for row in reader:
+#                aliases[row["Name"]] = row["Alias"]
+#    except FileNotFoundError as e:
+#        print ("cannot find resource file",args.resource_file)
+#        print ("Please specify resource file location\n")
+#        parser.print_help()
+#        exit()
 
 
 ##########
@@ -367,7 +408,7 @@ if __name__ == "__main__":
     parser.add_argument('--install', action='store_true',
                         help='Install to devices')
     parser.add_argument(
-        '--resource_file', default="JCL-Sandbox-Resources.csv", help='JCL resource file')
+        '--host_file', default="/etc/ansible/hosts", help='ansible host file - used for JCL aliases')
     parser.add_argument('topo_file', nargs='?',
                         default="/etc/ansible/group_vars/all/topology.yaml", help='JCL topology file')
     args = parser.parse_args()
@@ -393,8 +434,8 @@ if __name__ == "__main__":
     ae_iterator = ae_Iterator()
 
     aliases = {}
-
-    make_aliases()
+    #make_aliases()
+    get_alias_from_ansible_hosts()
 
     # with open("topology.yaml", "r") as stream:
     try:
