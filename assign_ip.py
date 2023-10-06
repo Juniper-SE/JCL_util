@@ -50,9 +50,8 @@ def remove_dup_edges(edge_list):
             uniq_edge_list.append(edge)
     return (uniq_edge_list)
 
+
 ##########
-
-
 def remove_non_jnpr(edge_list):
     jnpr_edge_list = []
     jnpr = r'^v((MX)|(PTX))'
@@ -63,9 +62,8 @@ def remove_non_jnpr(edge_list):
         jnpr_edge_list.append(edge)
     return jnpr_edge_list
 
+
 ##########
-
-
 def assign_ip(edge_list):
     device_configs = {}
 
@@ -248,16 +246,13 @@ def install_configs(rtr, configs):
             cu.commit()
     dev.close()
 
+
 ##########
-
-
 def lag_interfaces(edge_list):
     """ Find lag interfaces """
 
-    # print("LAG Interfaces")
-
-    # print("=== edge_list ===")
-    # pprint(edge_list)
+    print("=== edge_list ===")
+    pprint(edge_list)
 
     lag = []
     new_edge_list = []
@@ -285,10 +280,10 @@ def lag_interfaces(edge_list):
         else:
             lag.append(parallel_edge_list)
 
-    # print("=== new_edge_list ===")
-    # pprint(new_edge_list)
-    # print("=== lag ===")
-    # pprint(lag)
+    #print("=== new_edge_list ===")
+    #pprint(new_edge_list)
+    #print("=== lag ===")
+    #pprint(lag)
 
     return new_edge_list, lag
 
@@ -298,10 +293,14 @@ def assign_ip_lag(lag_list):
     """ Go through the lag list and convert it into a dict.  Assign interfaces and IP addresses"""
 
     lag_group_data = {}
-    # print("=== lag_list ===")
-    # pprint(lag_list)
+    print("=== lag_list ===")
+    pprint(lag_list)
+    #exit()
 
     for lag_group in lag_list:
+
+        print ("=lag group")
+        pprint (lag_group)
 
         # Get the next available PTP address
         ipv4_ptp_subnet = next(ipv4_address)
@@ -331,20 +330,21 @@ def assign_ip_lag(lag_list):
         aliases2 = get_alias(device2)
 
         # Assign the description and addresses to the lag group
-        lag_group_data.setdefault(device1, {})[ae1] = dict(
-            description=aliases2, ipv4=ipv4_1, ipv6=ipv6_1)
-        lag_group_data.setdefault(device2, {})[ae2] = dict(
-            description=aliases1, ipv4=ipv4_2, ipv6=ipv6_2)
+        lag_group_data.setdefault(device1, {})[ae1] = dict( description=aliases2, ipv4=ipv4_1, ipv6=ipv6_1)
+        lag_group_data.setdefault(device2, {})[ae2] = dict( description=aliases1, ipv4=ipv4_2, ipv6=ipv6_2)
 
         # Assign the interfaces to the lag group
         for lag in lag_group:
-            lag_group_data[lag[0]][ae1].setdefault(
-                "interfaces", []).append(lag[1])
-            lag_group_data[lag[2]][ae2].setdefault(
-                "interfaces", []).append(lag[3])
+            port1 = lag[1]
+            port2 = lag[3]
+            lag_group_data[lag[0]][ae1].setdefault( "interfaces", []).append(lag[1])
+            lag_group_data[lag[2]][ae2].setdefault( "interfaces", []).append(lag[3])
+            lag_group_data[lag[0]][ae1].setdefault( "interfaces_desc", []).append(aliases2 + ":" + port2)
+            lag_group_data[lag[2]][ae2].setdefault( "interfaces_desc", []).append(aliases1 + ":" + port1)
 
-    #pprint("=== lag_group_data ===")
-    #pprint(lag_group_data)
+    pprint("=== lag_group_data ===")
+    pprint(lag_group_data)
+    exit()
 
     return (lag_group_data)
 
@@ -407,8 +407,6 @@ if __name__ == "__main__":
                         help='Bundle multiple edges into a LAG')
     parser.add_argument('--install', action='store_true',
                         help='Install to devices')
-    parser.add_argument(
-        '--host_file', default="/etc/ansible/hosts", help='ansible host file - used for JCL aliases')
     parser.add_argument('topo_file', nargs='?',
                         default="/etc/ansible/group_vars/all/topology.yaml", help='JCL topology file')
     args = parser.parse_args()
