@@ -96,16 +96,16 @@ def assign_ip(edge_list):
             device_configs[edge[2]] = [{"interface": edge[3], "ipv4_address": ipv4_2,
                                         "ipv6_address": ipv6_2, "description": get_alias(edge[0]) + ":" + edge[1]}]
 
-    for rtr in device_configs:
-        ipv4_lo = next(ipv4_lo_address)
-        ipv6_lo = next(ipv6_lo_address)
-        iso_lo = '49.{:0>4}.{:0>4}.{:0>4}.{:0>4}.00'.format(str(ipv4_lo).split('.')[0], str(ipv4_lo).split(
-            '.')[1], str(ipv4_lo).split('.')[2], str(ipv4_lo).split('.')[3].split('/')[0], fill='0')
-        # print ("===",rtr,str(ipv4_lo_address),str(ipv6_lo_address),iso_lo)
-        # print ("iso = ",iso_lo)
-        device_configs[rtr].append({"interface": "lo0", "ipv4_address": str(
-            ipv4_lo), "ipv6_address": str(ipv6_lo), "iso_address": iso_lo})
-
+#    for rtr in device_configs:
+#        ipv4_lo = next(ipv4_lo_address)
+#        ipv6_lo = next(ipv6_lo_address)
+#        iso_lo = '49.{:0>4}.{:0>4}.{:0>4}.{:0>4}.00'.format(str(ipv4_lo).split('.')[0], str(ipv4_lo).split(
+#            '.')[1], str(ipv4_lo).split('.')[2], str(ipv4_lo).split('.')[3].split('/')[0], fill='0')
+#        # print ("===",rtr,str(ipv4_lo_address),str(ipv6_lo_address),iso_lo)
+#        # print ("iso = ",iso_lo)
+#        device_configs[rtr].append({"interface": "lo0", "ipv4_address": str(
+#            ipv4_lo), "ipv6_address": str(ipv6_lo), "iso_address": iso_lo})
+#
     return device_configs
 
 ##########
@@ -344,7 +344,7 @@ def assign_ip_lag(lag_list):
 
     pprint("=== lag_group_data ===")
     pprint(lag_group_data)
-    exit()
+    #exit()
 
     return (lag_group_data)
 
@@ -375,6 +375,73 @@ def get_alias(device):
         return aliases[device]
     else:
         return device
+
+##########
+def jnpr_device_list(jnpr_uniq_edge_list):
+    print ("=== in jnpr_device_list ===")
+    pprint (jnpr_uniq_edge_list)
+
+    #Construct a unique list of devices
+    seen = set()
+    unique_list = []
+    for item in jnpr_uniq_edge_list:
+        if item[0] not in seen:
+            unique_list.append(item[0])
+            seen.add(item[0])
+        if item[2] not in seen:
+            unique_list.append(item[2])
+            seen.add(item[2])
+
+    print ("=== unique device ===")
+    pprint (unique_list)
+    return (unique_list)
+
+
+
+##########
+def generate_lo0_configs(rtr):
+    print ("=== in generate_lo0_configs ===")
+    pprint (rtr)
+
+    template = """
+    interfaces {
+        lo0 {
+            unit 0 {
+            replace: family inet {
+                address {{ ipv4_lo }};
+            }
+            replace: family iso {
+                address {{ iso_lo }};
+            }
+            replace: family inet6 {
+                address {{ ipv6_lo }};
+            }
+        }
+      }
+    }
+    """
+
+
+    ipv4_lo = str(next(ipv4_lo_address))
+    ipv6_lo = str(next(ipv6_lo_address))
+    iso_lo = '49.{:0>4}.{:0>4}.{:0>4}.{:0>4}.00'.format(str(ipv4_lo).split('.')[0], str(ipv4_lo).split('.')[1], str(ipv4_lo).split('.')[2], str(ipv4_lo).split('.')[3].split('/')[0], fill='0')
+
+    #       device_configs[rtr].append({"interface": "lo0", "ipv4_address": str(
+    #        ipv4_lo), "ipv6_address": str(ipv6_lo), "iso_address": iso_lo})
+
+
+    print ("rtr = ",rtr)
+    j2_template = Template(template)
+
+    # must be a better way to do this
+    data = {}
+    data["ipv4_lo"] = ipv4_lo
+    data["ipv6_lo"] = ipv6_lo
+    data["iso_lo"] = iso_lo
+    config = j2_template.render(data)
+    return config
+
+
 
 ##########
 #def make_aliases():
@@ -460,6 +527,16 @@ if __name__ == "__main__":
     print("=== jnpr_uniq_edge_list ===")
     pprint(jnpr_uniq_edge_list)
 
+    #Assign lo0 interfaces
+    print("=== assign_lo0_ip ===")
+    device_list = jnpr_device_list(jnpr_uniq_edge_list) 
+    for rtr in device_list:
+        print("===", rtr, "===")
+        lo0_config = generate_lo0_configs( rtr )
+        print(lo0_config)
+        if (args.install):
+            install_configs(rtr, lo0_config)
+
     if args.lag:
         edge_list, lag_list = lag_interfaces(jnpr_uniq_edge_list)
 
@@ -482,12 +559,13 @@ if __name__ == "__main__":
         if (args.install):
             install_configs(rtr, interface_config)
 
+    print ("args.lag == ",args.lag)
     if args.lag:
         lag_interfaces = assign_ip_lag(lag_list)
         print("=== LAG interfaces ===")
         #pprint(lag_interfaces)
         for rtr in lag_interfaces:
-            print("===", rtr, "===")
+            print("=== LAG ", rtr, "===")
             interface_config = generate_lag_configs( rtr, lag_interfaces[rtr])
             print(interface_config)
             if (args.install):
