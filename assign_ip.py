@@ -203,10 +203,31 @@ interfaces {
               family inet6 {
                   address {{lag[key].ipv6}}
               }
+              family iso;
+              family mpls;
           }
       }
     {% endfor %}
 }
+
+protocols {
+    isis {
+        {% for key,value in lag.items() %}
+        interface {{ key }}.0 {
+        level 2 metric 10;
+        }
+        {% endfor %}
+    }
+    mpls {
+        {% for key,value in lag.items() %}
+        interface {{ key }}.0 ;
+        {% endfor %}
+    }
+    lldp {
+        interface all;
+    }
+}
+
 
     """
 
