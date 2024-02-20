@@ -27,11 +27,26 @@ with open(args.resource_file) as csvfile:
         print("\t", "Port ", row['PubPort'])
         print("\t", "User ", row['Username'])
         print("\t", "# Passwd ", row['Password'])
-        print("\t", "ForwardAgent yes")
-        print("\t", "ForwardX11 yes")
-        print("\t", "TCPKeepAlive yes")
-        print("\t", "ServerAliveInterval 60")
-        print("\t", "StrictHostKeyChecking no")
-        print("\t", "UserKnownHostsFile /dev/null")
+        #print("\t", "ForwardAgent yes")
+        #print("\t", "ForwardX11 yes")
+        #print("\t", "TCPKeepAlive yes")
+        #print("\t", "ServerAliveInterval 60")
+        #print("\t", "StrictHostKeyChecking no")
+        #print("\t", "UserKnownHostsFile /dev/null")
         print("")
+
+
+print("Host *")
+print("\t", "ForwardAgent yes")
+print("\t", "ForwardX11 yes")
+print("\t", "TCPKeepAlive yes")
+print("\t", "ServerAliveInterval 60")
+print("\t", "StrictHostKeyChecking no")
+print("\t", "UserKnownHostsFile /dev/null")
+print("\t", "IdentityFile ~/.ssh/jcl.key")
+print("\t", "SetEnv GIT_AUTHOR_NAME=\"Brian Sherwood\"")
+print("\t", "SetEnv GIT_AUTHOR_EMAIL=\"bsherwood@juniper.net\"")
+print("")
+
+
 
